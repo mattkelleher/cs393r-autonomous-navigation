@@ -3,3 +3,4 @@ build/*
 config/*
 lib/*
 *.png
+*/.vscode/*
