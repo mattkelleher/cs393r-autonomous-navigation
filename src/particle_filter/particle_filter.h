@@ -60,6 +60,9 @@ class ParticleFilter {
                   const Eigen::Vector2f& loc,
                   const float angle);
 
+  // Distance between two points
+  float _Distance(Eigen::Vector2f p1, Eigen::Vector2f p2);
+  
   // Return the list of particles.
   void GetParticles(std::vector<Particle>* particles) const;
 
@@ -102,6 +105,15 @@ class ParticleFilter {
   Eigen::Vector2f prev_odom_loc_;
   float prev_odom_angle_;
   bool odom_initialized_;
+  
+  // Location of last update
+  Eigen::Vector2f last_update_loc_;
+  // Number of particles in particle cloud
+  int num_particles_;
+  // Number of scans skipped 
+  int scan_density_;
+  // Number of updates since last resample
+  int update_count_;
 };
 }  // namespace slam
 
