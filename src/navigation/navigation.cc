@@ -136,3 +136,61 @@ void Navigation::Run() {
 }
 
 }  // namespace navigation
+
+// attempt to generate vertices & edges for PRM
+// 100000*100000 points on the map based on the map given
+// try generating 2000 * 2000 sample points
+// any point that is closer to a line in map
+
+// float Navigation::dist_point_to_line(float point_x, float point_y, Vector2f map_line_point1, Vector2f map_line_point2){
+//   float dist;
+//   dist = abs((map_line_point2.x - map_line_point1.x)*(map_line_point1.y-point_y) - (map_line_point1.x - map_line_point0.x) * (map_line_point2.y-map_line_point1.y))/sqrt((map_line_point2.x-map_line_point1.x)^2+(map_line_point2.y-map_line_point1.y)^2);
+//   return dist;
+// }
+// float Navigation::dist_point_to_point(Vector2f p1, Vector2f p2) {
+//  return sqrt(pow(p1.x() - p2.x(), 2) + pow(p1.y() - p2.y(), 2));
+// }
+
+// std::vector< Vector2f > sample_points;
+//not sure if this is a bug since i is not used
+// for (int i = 0 ; i < 4000000; i++){
+//  Vector2f sample_point;
+//  float x = rng_.UniformRandom(0, 1);
+// 100 = 100000 / 1000
+//  rand_x = -50 + (100 * x);
+//  sample_point.x = rand_x;
+//  float y = rng_.UniformRandom(0, 1);
+//  rand_y = -50 + (100 * y);
+//  sample_point.y = rand_y;
+//  sample_points.push_back(sample_point);
+// }
+
+// std::vector< int > sample_points_filtered;
+// for (Vector2f sample_point : sample_points){
+//   for (Line line : map){
+//     if (dist_point_to_line(sample_point.x, sample_point.y, line.point1, line.point2) > 0.3){
+//	  sample_points_filtered.push_back(sample_point);
+//	}
+//   }
+// }
+// std::vector <vector<Vector2f>> edges;
+// for (Vector2f sample_point1 : sample_points_filtered){
+//   for (Vector2f sample_point2 : sample_points_filtered){
+//   	if (0 < dist_point_to_point(sample_point1, sample_point2) < 0.1){
+//wrong syntax
+//	  edges.push_back(sample_point1, sample_point2);
+//	}
+//   }
+// }
+//
+// std::vector <vector<Vector2f>> edges;
+// for (vector<Vector2f> edge : edges){
+//   for (Line line : map){
+//   	if (line !intersect edge){
+//       edges_filtered.push_back(edge);
+//      }
+//   }
+// }
+//
+// add starting point and ending point
+// dijkstra
