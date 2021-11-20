@@ -19,10 +19,14 @@
 */
 //========================================================================
 
+#include <algorithm>
 #include <vector>
 
 #include "eigen3/Eigen/Dense"
-#include "ros/ros.h"
+#include "eigen3/Eigen/Geometry"
+#include "shared/math/line2d.h"
+#include "shared/util/random.h"
+#include "vector_map/vector_map.h"
 
 #ifndef NAVIGATION_H
 #define NAVIGATION_H
@@ -42,32 +46,6 @@ struct PathOption {
   EIGEN_MAKE_ALIGNED_OPERATOR_NEW;
 };
 
-struct CommandStamped{
-  double velocity = 0.0;
-  double curvature = 0.0;
-  uint64_t stamp = 0.0;
-
-  CommandStamped(){};
-
-  CommandStamped(double velocity, float curvature, uint64_t stamp){
-    this->velocity = velocity;
-    this->curvature = curvature;
-    this->stamp = stamp;
-  }
-
-  bool operator <(const uint64_t time_compare)
-  {
-    return this->stamp < time_compare;
-  }
-};
-
-struct TimeShiftedTF{
-  Eigen::Vector2f position = Eigen::Vector2f(0, 0);
-  double theta = 0.0;
-  double speed = 0.0;
-  uint64_t stamp = 0;
-};
-
 class Navigation {
  public:
 
@@ -81,24 +59,28 @@ class Navigation {
   void UpdateOdometry(const Eigen::Vector2f& loc,
                       float angle,
                       const Eigen::Vector2f& vel,
-                      float ang_vel,
-                      uint64_t time);
+                      float ang_vel);
 
   // Updates based on an observed laser scan
   void ObservePointCloud(const std::vector<Eigen::Vector2f>& cloud,
-                         uint64_t time);
+                         double time);
 
   // Main function called continously from main
   void Run();
   // Used to set the next target pose.
   void SetNavGoal(const Eigen::Vector2f& loc, float angle);
 
-  // Use time optimal strategy to control the car
-  void TimeOptimalControl(const PathOption& path);
-
-  std::vector<CommandStamped> vel_commands_;
-
- private:
+//#####################################################################
+  // Distance between a point and a line
+  float dist_point_to_line(float point_x, float point_y, Eigen::Vector2f map_line_point1, Eigen::Vector2f map_line_point2);
+  // Distance between two points
+  float dist_point_to_point(Eigen::Vector2f p1, Eigen::Vector2f p2);
+  // Creates graph and saves to txt files
+  void make_graph();
+  // loads graph from txt files
+  void load_graph();
+ 
+private:
 
   // Whether odometry has been initialized.
   bool odom_initialized_;
@@ -120,23 +102,8 @@ class Navigation {
   Eigen::Vector2f odom_start_loc_;
   // Odometry-reported robot starting angle.
   float odom_start_angle_;
-
-  // Last odometry timestamp
-  uint64_t odom_stamp_;
-  uint64_t last_odom_stamp_ = 0;
-  //Updates if odometry has new data
-  bool has_new_odom_;
-
-  TimeShiftedTF odom_state_tf;
-
   // Latest observed point cloud.
   std::vector<Eigen::Vector2f> point_cloud_;
-  std::vector<Eigen::Vector2f> transformed_point_cloud_;
-
-  //Point cloud timestamp
-  uint64_t point_cloud_stamp_;
-  //True if point cloud is updated
-  bool has_new_points_;
 
   // Whether navigation is complete.
   bool nav_complete_;
@@ -145,9 +112,14 @@ class Navigation {
   // Navigation goal angle.
   float nav_goal_angle_;
 
-  bool first_cycle = true;
-
-  void TransformPointCloud(TimeShiftedTF transform);
+  //########################################################
+  // Random number generator.
+  util_random::Random rng_;
+  vector_map::VectorMap map_;
+  // Vector of verticies
+  std::vector<Eigen::Vector2f> v_;
+  // Vector of vector of edges (parallel to v_ vector: e_[i] is a list of neighbors of v_[i])
+  std::vector<std::vector<int>> neighbors_;
 };
 
 }  // namespace navigation

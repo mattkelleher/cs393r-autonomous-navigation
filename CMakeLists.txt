@@ -34,6 +34,9 @@ ADD_LIBRARY(shared_library
             src/visualization/visualization.cc
             src/vector_map/vector_map.cc)
 
+ADD_LIBRARY(obstacle_avoidance
+            src/obstacle_avoidance/obstacle_avoidance.cc)
+
 ADD_SUBDIRECTORY(src/shared)
 INCLUDE_DIRECTORIES(src/shared)
 INCLUDE_DIRECTORIES(src)
@@ -52,7 +55,7 @@ TARGET_LINK_LIBRARIES(particle_filter shared_library ${libs})
 ROSBUILD_ADD_EXECUTABLE(navigation
                         src/navigation/navigation_main.cc
                         src/navigation/navigation.cc)
-TARGET_LINK_LIBRARIES(navigation shared_library ${libs})
+TARGET_LINK_LIBRARIES(navigation shared_library obstacle_avoidance ${libs})
 
 ADD_EXECUTABLE(eigen_tutorial
                src/eigen_tutorial.cc)

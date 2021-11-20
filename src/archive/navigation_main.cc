@@ -70,7 +70,6 @@ DEFINE_string(init_topic,
               "Name of ROS topic for initialization");
 DEFINE_string(map, "maps/GDC1.txt", "Name of vector map file");
 
-
 bool run_ = true;
 sensor_msgs::LaserScan last_laser_msg_;
 Navigation* navigation_ = nullptr;
@@ -84,7 +83,8 @@ void LaserCallback(const sensor_msgs::LaserScan& msg) {
   // Location of the laser on the robot. Assumes the laser is forward-facing.
   const Vector2f kLaserLoc(0.2, 0);
 
-  // Convert the LaserScan to a point cloud
+  static vector<Vector2f> point_cloud_;
+  // TODO Convert the LaserScan to a point cloud
   // The LaserScan parameters are accessible as follows:
   // msg.angle_increment // Angular increment between subsequent rays
   // msg.angle_max // Angle of the first ray
@@ -92,36 +92,19 @@ void LaserCallback(const sensor_msgs::LaserScan& msg) {
   // msg.range_max // Maximum observable range
   // msg.range_min // Minimum observable range
   // msg.ranges[i] // The range of the i'th ray
-  
-  static vector<Vector2f> cloud(msg.ranges.size());
-  
-  for(std::size_t i = 0; i < msg.ranges.size(); i++){
-
-    // Polar to Cartesian conversion, transforms to base link frame
-    float angle = msg.angle_min + msg.angle_increment*i;
-    float x = msg.ranges[i]*cos(angle) + kLaserLoc[0];
-    float y = msg.ranges[i]*sin(angle) + kLaserLoc[1];
-    
-    cloud[i] = Vector2f(x, y);
-  }
-
-  navigation_->ObservePointCloud(cloud, msg.header.stamp.toNSec()); // Upstream uses .toSec()?
+  navigation_->ObservePointCloud(point_cloud_, msg.header.stamp.toSec());
   last_laser_msg_ = msg;
 }
 
 void OdometryCallback(const nav_msgs::Odometry& msg) {
-  //msg.header.stamp = ros::Time::now();
   if (FLAGS_v > 0) {
     printf("Odometry t=%f\n", msg.header.stamp.toSec());
   }
-
-
   navigation_->UpdateOdometry(
       Vector2f(msg.pose.pose.position.x, msg.pose.pose.position.y),
       2.0 * atan2(msg.pose.pose.orientation.z, msg.pose.pose.orientation.w),
       Vector2f(msg.twist.twist.linear.x, msg.twist.twist.linear.y),
-      msg.twist.twist.angular.z,
-      ros::Time::now().toNSec());
+      msg.twist.twist.angular.z);
 }
 
 void GoToCallback(const geometry_msgs::PoseStamped& msg) {
@@ -170,8 +153,6 @@ int main(int argc, char** argv) {
     ros::spinOnce();
     navigation_->Run();
     loop.Sleep();
-
-    //ros::Duration(.215).sleep();
   }
   delete navigation_;
   return 0;
