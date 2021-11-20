@@ -27,6 +27,7 @@
 #include "amrl_msgs/VisualizationMsg.h"
 #include "glog/logging.h"
 #include "ros/ros.h"
+#include "shared/math/line2d.h"
 #include "shared/math/math_util.h"
 #include "shared/util/timer.h"
 #include "shared/ros/ros_helpers.h"
@@ -34,6 +35,8 @@
 #include "visualization/visualization.h"
 
 using Eigen::Vector2f;
+using Eigen::Vector2i;
+using geometry::line2f;
 using amrl_msgs::AckermannCurvatureDriveMsg;
 using amrl_msgs::VisualizationMsg;
 using std::string;
@@ -135,62 +138,126 @@ void Navigation::Run() {
   drive_pub_.publish(drive_msg_);
 }
 
-}  // namespace navigation
+//}  // namespace navigation 
+//#######################################################################################################################################
 
 // attempt to generate vertices & edges for PRM
 // 100000*100000 points on the map based on the map given
 // try generating 2000 * 2000 sample points
 // any point that is closer to a line in map
 
-// float Navigation::dist_point_to_line(float point_x, float point_y, Vector2f map_line_point1, Vector2f map_line_point2){
-//   float dist;
-//   dist = abs((map_line_point2.x - map_line_point1.x)*(map_line_point1.y-point_y) - (map_line_point1.x - map_line_point0.x) * (map_line_point2.y-map_line_point1.y))/sqrt((map_line_point2.x-map_line_point1.x)^2+(map_line_point2.y-map_line_point1.y)^2);
-//   return dist;
-// }
-// float Navigation::dist_point_to_point(Vector2f p1, Vector2f p2) {
-//  return sqrt(pow(p1.x() - p2.x(), 2) + pow(p1.y() - p2.y(), 2));
-// }
+float Navigation::dist_point_to_line(float point_x, float point_y, Vector2f map_line_point1, Vector2f map_line_point2){
+  float a;  //  line is defined as ax+by+c=0
+  float b;
+  float c;
 
-// std::vector< Vector2f > sample_points;
-//not sure if this is a bug since i is not used
-// for (int i = 0 ; i < 4000000; i++){
-//  Vector2f sample_point;
-//  float x = rng_.UniformRandom(0, 1);
-// 100 = 100000 / 1000
-//  rand_x = -50 + (100 * x);
-//  sample_point.x = rand_x;
-//  float y = rng_.UniformRandom(0, 1);
-//  rand_y = -50 + (100 * y);
-//  sample_point.y = rand_y;
-//  sample_points.push_back(sample_point);
-// }
+  a = map_line_point1.y() - map_line_point2.y();
+  b = map_line_point2.x() - map_line_point1.x();
+  c = map_line_point1.x() * map_line_point2.y() - map_line_point2.x() * map_line_point1.y();
 
-// std::vector< int > sample_points_filtered;
-// for (Vector2f sample_point : sample_points){
-//   for (Line line : map){
-//     if (dist_point_to_line(sample_point.x, sample_point.y, line.point1, line.point2) > 0.3){
-//	  sample_points_filtered.push_back(sample_point);
-//	}
-//   }
-// }
-// std::vector <vector<Vector2f>> edges;
-// for (Vector2f sample_point1 : sample_points_filtered){
-//   for (Vector2f sample_point2 : sample_points_filtered){
-//   	if (0 < dist_point_to_point(sample_point1, sample_point2) < 0.1){
-//wrong syntax
-//	  edges.push_back(sample_point1, sample_point2);
-//	}
-//   }
-// }
-//
-// std::vector <vector<Vector2f>> edges;
-// for (vector<Vector2f> edge : edges){
-//   for (Line line : map){
-//   	if (line !intersect edge){
-//       edges_filtered.push_back(edge);
-//      }
-//   }
-// }
-//
-// add starting point and ending point
-// dijkstra
+  return abs(a * point_x + b * point_y + c) / sqrt(pow(a,2) + pow(b,2));
+}
+
+float Navigation::dist_point_to_point(Vector2f p1, Vector2f p2) {
+  return sqrt(pow(p1.x() - p2.x(), 2) + pow(p1.y() - p2.y(), 2));
+ }
+
+void Navigation::make_graph(){
+  vector<Vector2f> sample_points;
+
+  float xmin, xmax, ymin, ymax;
+  xmin = -44.0;
+  xmax = 11.8;
+  ymin = -32.75;
+  ymax = -8.5;
+  for(int i = 0; i < 3 * 1400; i++) { //drop points in GDC1 "lower" x = [-44, 11.8] y=[-32.75, -8.5]
+    Vector2f sample_point;
+    sample_point.x() = rng_.UniformRandom(xmin, xmax);
+    sample_point.y() = rng_.UniformRandom(ymin, ymax);
+    sample_points.push_back(sample_point); 
+  }
+  xmin = -42.33;
+  xmax = 44.26;
+  ymin = 2.70;
+  ymax = 22.12;
+  for(int i = 0; i < 3 * 1740; i++) { //drop points in GDC1 "upper main"
+    Vector2f sample_point;
+    sample_point.x() = rng_.UniformRandom(xmin, xmax);
+    sample_point.y() = rng_.UniformRandom(ymin, ymax);
+    sample_points.push_back(sample_point); 
+  }
+  xmin = 6.40;
+  xmax = 26.80;
+  ymin = 22.12;
+  ymax = 34.30;
+  for(int i = 0; i < 3 * 256; i++) { //drop points in GDC1 "upper top"
+    Vector2f sample_point;
+    sample_point.x() = rng_.UniformRandom(xmin, xmax);
+    sample_point.y() = rng_.UniformRandom(ymin, ymax);
+    sample_points.push_back(sample_point); 
+  }
+
+  vector<Vector2f> sample_points_filtered;
+  for (auto sample_point : sample_points){
+    for (size_t j = 0; j < map_.lines.size(); j++){
+      Vector2f m_point1;
+      Vector2f m_point2;
+      
+      m_point1.x() = map_.lines[j].p0.x();
+      m_point1.y() = map_.lines[j].p0.y();
+      m_point2.x() = map_.lines[j].p1.x();
+      m_point2.y() = map_.lines[j].p1.y();
+
+      if (dist_point_to_line(sample_point.x(), sample_point.y(), m_point1, m_point2) > 0.3){ //TODO 0.3 
+        sample_points_filtered.push_back(sample_point);
+      }
+    }  
+  }
+
+  vector<Vector2i> edges;
+  for(size_t i = 0; i < sample_points_filtered.size(); i++) {
+    for(size_t j = i + 1; j < sample_points_filtered.size(); j++) {
+      if(0 < dist_point_to_point(sample_points_filtered[i], sample_points_filtered[j]) && dist_point_to_point(sample_points_filtered[i], sample_points_filtered[j]) < 2){ //TODO 0 and 0.1
+        edges.push_back(Vector2i(int(i), int(j)));
+      }
+    } 
+  }
+  vector<Vector2i> edges_filtered;
+  for (size_t i = 0; i<edges.size(); i++){
+    Vector2i edge = edges[i];
+    line2f edge_line(sample_points_filtered[edge.x()], sample_points_filtered[edge.y()]); 
+    for (size_t j = 0; j < map_.lines.size(); j++){ //TODO make map_ part of navigation class and initalize
+      const line2f map_line = map_.lines[j];
+      Vector2f intrsctn_pt;
+      if(!map_line.Intersection(edge_line, &intrsctn_pt)){ //TODO
+        edges_filtered.push_back(edge);
+      }
+    }
+  }
+  
+  // Write vertices to a file
+  FILE* vertex_fid = fopen("vertices.txt", "w");
+  if(vertex_fid == NULL) {
+    fprintf(stderr, "ERROR: Unable to open vertices.txt");
+    exit(1);
+  }
+  for(size_t i = 0; i < sample_points_filtered.size(); i++) {
+    float point_x = sample_points_filtered[i].x();
+    float point_y = sample_points_filtered[i].y();
+    fprintf(vertex_fid, "%f, %f \n", point_x, point_y);
+  }
+  fclose(vertex_fid);
+
+  // Write edges to a file
+  FILE* edge_fid = fopen("edge.txt", "w");
+  if(edge_fid == NULL) {
+    fprintf(stderr, "ERROR: Unable to open edge.txt");
+    exit(1);
+  }
+  for(size_t i = 0; i < edges_filtered.size(); i++) {
+    fprintf(vertex_fid, "%i, %i \n", edges_filtered[i].x(), edges_filtered[i].y());
+  }
+  fclose(edge_fid);
+}
+
+}  // namespace navigation

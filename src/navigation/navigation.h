@@ -19,9 +19,14 @@
 */
 //========================================================================
 
+#include <algorithm>
 #include <vector>
 
 #include "eigen3/Eigen/Dense"
+#include "eigen3/Eigen/Geometry"
+#include "shared/math/line2d.h"
+#include "shared/util/random.h"
+#include "vector_map/vector_map.h"
 
 #ifndef NAVIGATION_H
 #define NAVIGATION_H
@@ -65,7 +70,15 @@ class Navigation {
   // Used to set the next target pose.
   void SetNavGoal(const Eigen::Vector2f& loc, float angle);
 
- private:
+//#####################################################################
+  // Distance between a point and a line
+  float dist_point_to_line(float point_x, float point_y, Eigen::Vector2f map_line_point1, Eigen::Vector2f map_line_point2);
+  // Distance between two points
+  float dist_point_to_point(Eigen::Vector2f p1, Eigen::Vector2f p2);
+  // Creates graph
+  void make_graph();
+ 
+private:
 
   // Whether odometry has been initialized.
   bool odom_initialized_;
@@ -96,6 +109,11 @@ class Navigation {
   Eigen::Vector2f nav_goal_loc_;
   // Navigation goal angle.
   float nav_goal_angle_;
+
+  //########################################################
+  // Random number generator.
+  util_random::Random rng_;
+  vector_map::VectorMap map_;
 };
 
 }  // namespace navigation
