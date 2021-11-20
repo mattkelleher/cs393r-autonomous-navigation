@@ -67,7 +67,7 @@ Navigation::Navigation(const string& map_file, ros::NodeHandle* n) :
     robot_angle_(0),//angle w.r.t global x- axis (rad)
     robot_vel_(0, 0),
     robot_omega_(0),
-    nav_complete_(true),
+    nav_complete_(false),
     nav_goal_loc_(0, 0),
     nav_goal_angle_(0) {
   drive_pub_ = n->advertise<AckermannCurvatureDriveMsg>(
@@ -83,6 +83,9 @@ Navigation::Navigation(const string& map_file, ros::NodeHandle* n) :
 }
 
 void Navigation::SetNavGoal(const Vector2f& loc, float angle) {
+  nav_goal_loc_ = loc;
+  nav_goal_angle_ = angle;
+  std::cout << "New Nav Goal: (" << nav_goal_loc_.x() << ", " << nav_goal_loc_.y() << ")" << std::endl; 
 }
 
 void Navigation::UpdateLocation(const Eigen::Vector2f& loc, float angle) {
@@ -159,6 +162,13 @@ void Navigation::TransformPointCloud(TimeShiftedTF transform){
 }
 
 void Navigation::Run(){
+   if(dist_point_to_point(nav_goal_loc_, robot_loc_) < 0.15) {
+     nav_complete_ = true;
+   }   
+   if(nav_complete_) {
+     return; 
+   }
+  
   //This function gets called 20 times a second to form the control loop.
   uint64_t start_loop_time = ros::Time::now().toNSec();
   uint64_t actuation_time = start_loop_time + car_params::actuation_latency;
@@ -430,6 +440,7 @@ void Navigation::load_graph(){
   while(fscanf(vertex_fid, "%f, %f \n", &x, &y) == 2) {
     v_.push_back(Vector2f(x,y));
     neighbors_.push_back({});
+    visited_.push_back(0);
   }
   fclose(vertex_fid);
 
@@ -446,6 +457,11 @@ void Navigation::load_graph(){
   }
 }
 
+void Navigation::reset_graph(){
+  for(size_t i = 0; i < visited_.size(); i++) {
+    visited_[i] = 0;
+  }
+}
 
 Vector2f Navigation::get_local_goal() {
   // Check if v_ and neighbors_ are empty if empty:
@@ -466,11 +482,21 @@ Vector2f Navigation::get_local_goal() {
 }
 
 bool Navigation::find_carrot(Vector2f* carrot){
+  // Using plan_ and robot_loc_  (these are both in map frame)
+  // 1. find potential carrot locations in map frame  (intersection of plan and 4m circle around robot
+  // 2. transform carrot location from map frame to robot frame
+  // 3. pick best potential carrot
+  //     note we there may be 2+ intersection points, pick the one clostest to the nav_goal_loc_
+  //     AND in front of the robot
   return 1;
 }
 
 void Navigation::make_plan(){ 
-
+  reset_graph();
+  // Add start and goal to graph
+  // run dijkstra 
+  // add vertice indicies to plan_ in order
+  // remove start and goal vertices from v_, neighbors_, and visited_ 
 }
 
 }  // namespace navigation

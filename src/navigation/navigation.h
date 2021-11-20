@@ -117,6 +117,8 @@ class Navigation {
   bool find_carrot(Eigen::Vector2f* carrot);
   // Create navigation plan
   void make_plan();
+  // Reset visted field for grpah 
+  void reset_graph();
 
  private:
 
@@ -179,7 +181,8 @@ class Navigation {
   std::vector<std::vector<int>> neighbors_;
   // Vector of points in the plan to be visited in order
   std::vector<Eigen::Vector2f> plan_;
-  
+  // keeps track of which nodes have been visited for planning
+  std::vector<int> visited_;  
 };
 
 }  // namespace navigation
