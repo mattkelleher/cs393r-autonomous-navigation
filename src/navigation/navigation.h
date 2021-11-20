@@ -111,6 +111,12 @@ class Navigation {
   void make_graph();
   // loads graph from txt files
   void load_graph();
+  // Find local navigation goal
+  Eigen::Vector2f get_local_goal();
+  // find carrot for local navigation goal
+  bool find_carrot(Eigen::Vector2f* carrot);
+  // Create navigation plan
+  void make_plan();
 
  private:
 
@@ -171,6 +177,9 @@ class Navigation {
   std::vector<Eigen::Vector2f> v_;
   // Vector of vector of edges (parallel to v_ vector: e_[i] is a list of neighbors of v_[i])
   std::vector<std::vector<int>> neighbors_;
+  // Vector of points in the plan to be visited in order
+  std::vector<Eigen::Vector2f> plan_;
+  
 };
 
 }  // namespace navigation

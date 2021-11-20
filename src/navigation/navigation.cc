@@ -232,7 +232,7 @@ void Navigation::Run(){
   //obstacle_avoidance::DrawCarLocal(local_viz_msg_, odom_state_tf.position, odom_state_tf.theta);
 
   // "Carrot on a stick" goal point, and resulting goal curvature
-  Eigen::Vector2f goal_point(4, 0.0);
+  Vector2f goal_point = get_local_goal();
   float goal_curvature = obstacle_avoidance::GetCurvatureFromGoalPoint(goal_point);
   goal_curvature = Clamp(goal_curvature, car_params::min_curvature, car_params::max_curvature);
 
@@ -406,7 +406,7 @@ void Navigation::make_graph(){
   fclose(vertex_fid);
 
   // Write edges to a file
-  FILE* edge_fid = fopen("edge.txt", "w");
+  FILE* edge_fid = fopen("edges.txt", "w");
   if(edge_fid == NULL) {
     fprintf(stderr, "ERROR: Unable to open edge.txt");
     exit(1);
@@ -419,7 +419,7 @@ void Navigation::make_graph(){
 
 void Navigation::load_graph(){
   
-  FILE* vertex_fid = fopen("vertices.txt", "w");
+  FILE* vertex_fid = fopen("vertices.txt", "r");
   if(vertex_fid == NULL) {
     fprintf(stderr, "ERROR: Unable to open vertices.txt");
     exit(1);
@@ -434,7 +434,7 @@ void Navigation::load_graph(){
   fclose(vertex_fid);
 
   
-  FILE* edge_fid = fopen("edge.txt", "w");
+  FILE* edge_fid = fopen("edges.txt", "r");
   if(edge_fid == NULL) {
     fprintf(stderr, "ERROR: Unable to open edge.txt");
     exit(1);
@@ -445,4 +445,32 @@ void Navigation::load_graph(){
     neighbors_[p1].push_back(p0);
   }
 }
+
+
+Vector2f Navigation::get_local_goal() {
+  // Check if v_ and neighbors_ are empty if empty:
+    // Check if vertices.txt and edges.txt exist, 
+      //if not run make_graph()
+      //if they do run load_graph()
+  // find intersection of plan and 4m radius around current location, this is local_goal
+  Vector2f carrot(4,0);
+  bool intersection_found = 0;
+  while(!intersection_found) {
+    intersection_found = find_carrot(&carrot); 
+    if(!intersection_found){
+      make_plan();
+    }
+  }
+     // if no intersection -> plan is not valid -> run generate_plan() and repeat 
+  return carrot;
+}
+
+bool Navigation::find_carrot(Vector2f* carrot){
+  return 1;
+}
+
+void Navigation::make_plan(){ 
+
+}
+
 }  // namespace navigation
