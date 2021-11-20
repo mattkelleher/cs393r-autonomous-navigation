@@ -260,4 +260,34 @@ void Navigation::make_graph(){
   fclose(edge_fid);
 }
 
+void Navigation::load_graph(){
+  
+  FILE* vertex_fid = fopen("vertices.txt", "w");
+  if(vertex_fid == NULL) {
+    fprintf(stderr, "ERROR: Unable to open vertices.txt");
+    exit(1);
+  }
+  v_.clear();
+  neighbors_.clear();
+  float x(0), y(0);
+  while(fscanf(vertex_fid, "%f, %f \n", &x, &y) == 2) {
+    v_.push_back(Vector2f(x,y));
+    neighbors_.push_back({});
+  }
+  fclose(vertex_fid);
+
+  
+  FILE* edge_fid = fopen("edge.txt", "w");
+  if(edge_fid == NULL) {
+    fprintf(stderr, "ERROR: Unable to open edge.txt");
+    exit(1);
+  }
+  int p0(0), p1(0);
+  while(fscanf(edge_fid, "%i, %i \n", &p0, &p1) == 2) {
+    neighbors_[p0].push_back(p1); 
+    neighbors_[p1].push_back(p0);
+  }
+}
+
+
 }  // namespace navigation
