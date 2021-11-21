@@ -177,8 +177,8 @@ void Navigation::Run(){
   uint64_t actuation_time = start_loop_time + car_params::actuation_latency;
   
   // Clear previous visualizations.
-  visualization::ClearVisualizationMsg(local_viz_msg_);
-  visualization::ClearVisualizationMsg(global_viz_msg_);
+  visualization::ClearVisualizationMsg(local_viz_msg_); 
+  //visualization::ClearVisualizationMsg(global_viz_msg_); TODO undo
 
   // If odometry has not been initialized, we can't do anything.
   if (!odom_initialized_) return;
@@ -380,8 +380,8 @@ void Navigation::make_graph(){
       m_point2.x() = map_.lines[j].p1.x();
       m_point2.y() = map_.lines[j].p1.y();
 
-      if (dist_point_to_line(sample_point.x(), sample_point.y(), m_point1, m_point2) < 0.3){ //TODO 0.3 
-        point_valid = false;
+      if (dist_point_to_line(sample_point.x(), sample_point.y(), m_point1, m_point2) < 0.2){ //TODO 0.3 
+  //      point_valid = false; TODO undo? this will simply give us all sampled points
         break;
       }
     }
@@ -390,7 +390,6 @@ void Navigation::make_graph(){
     }  
   }
   std::cout << "Vertice filtering complete" << std::endl;
-  std::cout << "Num Vertices: " << sample_points_filtered.size() << std::endl;
   vector<Vector2i> edges;
   for(size_t i = 0; i < sample_points_filtered.size(); i++) {
     for(size_t j = i + 1; j < sample_points_filtered.size(); j++) {
@@ -402,14 +401,19 @@ void Navigation::make_graph(){
   std::cout << "Edge indentifying complete" << std::endl;
   vector<Vector2i> edges_filtered;
   for (size_t i = 0; i<edges.size(); i++){
+    bool edge_valid = true;
     Vector2i edge = edges[i];
     line2f edge_line(sample_points_filtered[edge.x()], sample_points_filtered[edge.y()]); 
     for (size_t j = 0; j < map_.lines.size(); j++){ //TODO make map_ part of navigation class and initalize
       const line2f map_line = map_.lines[j];
       Vector2f intrsctn_pt;
-      if(!map_line.Intersection(edge_line, &intrsctn_pt)){ //TODO
-        edges_filtered.push_back(edge);
+      if(map_line.Intersection(edge_line, &intrsctn_pt)){
+        edge_valid = false;
+        break;       
       }
+    }
+    if(edge_valid) {
+      edges_filtered.push_back(edge);
     }
   }
   std::cout<< "Edge filtering complete" << std::endl;
@@ -451,6 +455,7 @@ void Navigation::load_graph(){
   while(fscanf(vertex_fid, "%f, %f \n", &x, &y) == 2) {
     v_.push_back(Vector2f(x,y));
     neighbors_.push_back({});
+    visualization::DrawPoint(Vector2f(x,y), 0x1644db, global_viz_msg_);
     visited_.push_back(0);
   }
   fclose(vertex_fid);
