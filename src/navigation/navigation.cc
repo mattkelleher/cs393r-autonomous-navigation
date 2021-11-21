@@ -456,7 +456,6 @@ void Navigation::load_graph(){
     v_.push_back(Vector2f(x,y));
     neighbors_.push_back({});
     visualization::DrawPoint(Vector2f(x,y), 0x1644db, global_viz_msg_);
-    visited_.push_back(0);
   }
   fclose(vertex_fid);
 
@@ -474,9 +473,13 @@ void Navigation::load_graph(){
 }
 
 void Navigation::reset_graph(){
-  for(size_t i = 0; i < visited_.size(); i++) {
-    visited_[i] = 0;
-  }
+  plan_.clear();    
+  // Remove goal vertex from graph
+  v_.pop_back();
+  neighbors_.pop_back();
+  // Remove start vertex from graph
+  v_.pop_back();
+  neighbors_.pop_back();
 }
 
 Vector2f Navigation::get_local_goal() {
@@ -557,52 +560,70 @@ void Navigation::make_plan(){
   // Add start and goal to graph
   // run dijkstra 
   // add vertice indicies to plan_ in order
-  // remove start and goal vertices from v_, neighbors_, and visited_ 
+  // remove start and goal vertices from v_, neighbors_
   Vector2f start;
+  // Insert starting location
   start = robot_loc_;
-  std::v_::insert(begin(), 1, start);
-  std::neighbors_::insert(begin(), 1, {});
+  int start_idx = v_.size();
+  v_.push_back(start);
+  neighbors_.push_back({});
 
+  int goal_idx = v_.size();
   v_.push_back(nav_goal_loc_);
+  neighbors_.push_back({});
 
-  for(size_t i = 0; i < sample_points_filtered.size(); i++) {
-      if(0 < dist_point_to_point(sample_points_filtered[i], start) && dist_point_to_point(sample_points_filtered[i], start)< 2){ //TODO 0 and 0.1
-        neighbors_[0].push_back(int(i));
-	neighbors_[i].push_back(int(0));
+  // Add neighbors related to edges between start and other vertices
+  for(size_t i = 0; i < v_.size(); i++) {
+      if(int(i) == start_idx)
+      {
+        continue;
+      }
+      if(0 < dist_point_to_point(v_[i], start) && dist_point_to_point(v_[i], start)< 2){ 
+        neighbors_[start_idx].push_back(int(i));
+	neighbors_[i].push_back(start_idx);
       }
   }
 
-  for(size_t i = 0; i < sample_points_filtered.size(); i++) {
-      if(0 < dist_point_to_point(sample_points_filtered[i], robot_loc_) && dist_point_to_point(sample_points_filtered[i], robot_loc_)< 2){ //TODO 0 and 0.1
-        neighbors_.push_back(int(i));
+  // Add neighbors related to edges between goal and other vertices
+  for(size_t i = 0; i < v_.size(); i++) {
+      if(int(i) == goal_idx)
+      {
+        continue;
+      }
+      if(0 < dist_point_to_point(v_[i], nav_goal_loc_) && dist_point_to_point(v_[i], nav_goal_loc_)< 2){ 
+        neighbors_[i].push_back(goal_idx);
       }
   }  
 
-  frontier = PriorityQueue();  // Note priority!
-  Vector2f node_and_cost;
-  node_and_cost.node() = 0;
-  node_and_cost.cost() = 0;
+  std::priority_queue<std::pair<int, int>> frontier;  // Note priority!
+  std::map<int, float> cost = {}; 
+  std::map<int, int> parent = {};
+  
+  cost.insert({start_idx, 0});
+  parent.insert({start_idx, -1});
 
-  frontier.push(node_and_cost);     // start index, cost to go
-  parent = {}, parent[0] = Null;
-  cost = {};
-  cost[0] = 0;             // Cost from start
+  frontier.push(std::make_pair(0, start_idx));     // start index, cost to go
 
   while (!frontier.empty()){
-    current = frontier.get();  // Get by priority!
-    if (current.node() == v_.size()-1){
+    int current = frontier.top().second;  // Get by priority!
+    frontier.pop();
+    if (current == goal_idx){
+      // update plan_ to have nav plan
+      while(current != -1) {
+         plan_.push_back(current);
+         current = parent[current];
+      }
       break;
     }
-    for (auto next: neighbors_[current.node()]){
-      new_cost = cost[current.node()] + dist_point_to_point(v_[current.node()], next);
-      if next not in cost or new_cost < cost[next]:
-        cost[next] = new_cost  // Insertion or edit
-        frontier.put(next, new_cost)
-        parent[next] = current
+    for (int next: neighbors_[current]){
+      float new_cost = cost[current] + dist_point_to_point(v_[current], v_[next]);
+      if((cost.find(next) == cost.end()) || (new_cost < cost[next])) {  
+        cost[next] = new_cost;  // Insertion or edit
+        frontier.push(std::make_pair(new_cost, next));
+        parent[next] = current;
+      }
     }
   }
-  v_.erase(vec.begin());
-  v_.popback();
  }
 
 }  // namespace navigation

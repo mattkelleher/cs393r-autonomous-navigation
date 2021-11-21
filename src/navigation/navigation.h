@@ -21,6 +21,8 @@
 
 #include <algorithm>
 #include <vector>
+#include <map>
+#include <queue>
 
 #include "eigen3/Eigen/Dense"
 #include "eigen3/Eigen/Geometry"
@@ -182,8 +184,6 @@ class Navigation {
   std::vector<std::vector<int>> neighbors_;
   // Vector of points in the plan to be visited in order
   std::vector<int> plan_;
-  // keeps track of which nodes have been visited for planning
-  std::vector<int> visited_;  
 };
 
 }  // namespace navigation
