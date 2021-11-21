@@ -530,12 +530,12 @@ bool Navigation::find_carrot(Vector2f* carrot){
                      Vector2f(starting_point.x(),2*sin(M_PI/deg_res)/sin(M_PI*(90-180/deg_res)/180)));
   //line2f circle = vector containing lines
   Vector2f intersection_point;
-  Vector2f potential_carrot;
+  Vector2f best_carrot;
   float min_goal_dist = 4;
 
   for(size_t n = 0; n < plan_.size(); n++) {
-    line2f plan_line(Vector2f(robot_loc_[plan_[n]].x(),robot_loc_[plan_[n]].y()),
-                     Vector2f(robot_loc_[plan_[n+1]].x(),robot_loc_[plan_[n+1]].y()));
+    line2f plan_line(Vector2f(v_[plan_[n]].x(),v_[plan_[n]].y()),
+                     Vector2f(v_[plan_[n+1]].x(),v_[plan_[n+1]].y()));
     for(int theta = -90; theta < 90; theta++) {
       line2f circle_line(robot_loc_.x()+circle_line.p0.x()*cos(theta*M_PI/180)-circle_line.p0.y()*sin(theta*M_PI/180),
                          robot_loc_.y()+circle_line.p0.x()*sin(theta*M_PI/180)+circle_line.p0.y()*cos(theta*M_PI/180),
@@ -544,13 +544,16 @@ bool Navigation::find_carrot(Vector2f* carrot){
       bool intersects = plan_line.Intersects(circle_line,&intersection_point);
       if(intersects && _Distance(intersection_point,nav_goal_loc_) < min_goal_dist) {
         min_goal_dist = _Distance(intersection_point,nav_goal_loc_);
-        potential_carrot = intersection_point;
+        best_carrot = intersection_point;
       }
     }
   
-  carrot = potential_carrot;
+  carrot = best_carrot;
 
   }
+
+  return 1;
+
 }
 
 void Navigation::make_plan(){ 
