@@ -558,10 +558,24 @@ void Navigation::make_plan(){
   // run dijkstra 
   // add vertice indicies to plan_ in order
   // remove start and goal vertices from v_, neighbors_, and visited_ 
-  start = Vector2f(start_x_, start_y_);
+  Vector2f start;
+  start = robot_loc_;
   std::v_::insert(begin(), 1, start);
 
   v_.push_back(nav_goal_loc_);
+
+  for(size_t i = 0; i < sample_points_filtered.size(); i++) {
+      if(0 < dist_point_to_point(sample_points_filtered[i], start) && dist_point_to_point(sample_points_filtered[i], start)< 2){ //TODO 0 and 0.1
+        edges.push_back(Vector2i(0, int(i)));
+      }
+  }
+
+  for(size_t i = 0; i < sample_points_filtered.size(); i++) {
+      if(0 < dist_point_to_point(sample_points_filtered[i], robot_loc_) && dist_point_to_point(sample_points_filtered[i], robot_loc_)< 2){ //TODO 0 and 0.1
+        edges.push_back(Vector2i(int(i), v_.size()-1));
+      }
+  }  
+
 
   frontier = PriorityQueue();  // Note priority!
   Vector2f node_and_cost;
