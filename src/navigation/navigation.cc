@@ -481,6 +481,10 @@ Vector2f Navigation::get_local_goal() {
   return carrot;
 }
 
+float ParticleFilter::_Distance(Vector2f p1, Vector2f p2) {
+  return sqrt(pow(p1.x() - p2.x(), 2) + pow(p1.y() - p2.y(), 2));
+}
+
 bool Navigation::find_carrot(Vector2f* carrot){
   // Using plan_ and robot_loc_  (these are both in map frame)
   // 1. find potential carrot locations in map frame  (intersection of plan and 4m circle around robot
@@ -488,7 +492,35 @@ bool Navigation::find_carrot(Vector2f* carrot){
   // 3. pick best potential carrot
   //     note we there may be 2+ intersection points, pick the one clostest to the nav_goal_loc_
   //     AND in front of the robot
-  return 1;
+
+  float deg_res = 360;
+  Vector2f starting_point(2,0); 
+  //vector<line2f> circle;
+  line2f circle_line(Vector2f(starting_point.x(),-2*sin(M_PI/deg_res)/sin(M_PI*(90-180/deg_res)/180)),
+                     Vector2f(starting_point.x(),2*sin(M_PI/deg_res)/sin(M_PI*(90-180/deg_res)/180)));
+  //line2f circle = vector containing lines
+  Vector2f intersection_point;
+  Vector2f potential_carrot;
+  float min_goal_dist = 4;
+
+  for(size_t n = 0; n < plan_.size(); n++) {
+    line2f plan_line(Vector2f(robot_loc_[plan_[n]].x(),robot_loc_[plan_[n]].y()),
+                     Vector2f(robot_loc_[plan_[n+1]].x(),robot_loc_[plan_[n+1]].y()));
+    for(int theta = -90; theta < 90; theta++) {
+      line2f circle_line(robot_loc_.x()+circle_line.p0.x()*cos(theta*M_PI/180)-circle_line.p0.y()*sin(theta*M_PI/180),
+                         robot_loc_.y()+circle_line.p0.x()*sin(theta*M_PI/180)+circle_line.p0.y()*cos(theta*M_PI/180),
+                         robot_loc_.x()+circle_line.p1.x()*cos(theta*M_PI/180)-circle_line.p1.y()*sin(theta*M_PI/180),
+                         robot_loc_.y()+circle_line.p1.x()*sin(theta*M_PI/180)+circle_line.p1.y()*cos(theta*M_PI/180));
+      bool intersects = plan_line.Intersects(circle_line,&intersection_point);
+      if(intersects && _Distance(intersection_point,nav_goal_loc_) < min_goal_dist) {
+        min_goal_dist = _Distance(intersection_point,nav_goal_loc_);
+        potential_carrot = intersection_point;
+      }
+    }
+  
+  carrot = potential_carrot;
+
+  }
 }
 
 void Navigation::make_plan(){ 
