@@ -563,21 +563,23 @@ void Navigation::make_plan(){
 
   v_.push_back(nav_goal_loc_);
 
-  Vector<Vector2f> visited_;
-
   frontier = PriorityQueue();  // Note priority!
-  frontier.push(0);     // start index, cost to go
+  Vector2f node_and_cost;
+  node_and_cost.node() = 0;
+  node_and_cost.cost() = 0;
+
+  frontier.push(node_and_cost);     // start index, cost to go
   parent = {}, parent[0] = Null;
   cost = {};
   cost[0] = 0;             // Cost from start
 
   while (!frontier.empty()){
     current = frontier.get();  // Get by priority!
-    if (current == sizeof(v_)-1){
-      break
+    if (current.node() == v_.size()-1){
+      break;
     }
-    for (auto next: neighbors_[current]){
-      new_cost = cost[current] + dist_point_to_point(v_[current], next);
+    for (auto next: neighbors_[current.node()]){
+      new_cost = cost[current.node()] + dist_point_to_point(v_[current.node()], next);
       if next not in cost or new_cost < cost[next]:
         cost[next] = new_cost  // Insertion or edit
         frontier.put(next, new_cost)
