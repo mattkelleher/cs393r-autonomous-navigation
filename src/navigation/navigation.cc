@@ -70,7 +70,8 @@ Navigation::Navigation(const string& map_file, ros::NodeHandle* n) :
     nav_complete_(false),
     nav_goal_loc_(0, 0),
     nav_goal_angle_(0),
-    map_file_(map_file) {
+    map_file_(map_file),
+    plan_({}) {
   drive_pub_ = n->advertise<AckermannCurvatureDriveMsg>(
       "ackermann_curvature_drive", 1);
   viz_pub_ = n->advertise<VisualizationMsg>("visualization", 1);
@@ -482,7 +483,8 @@ void Navigation::reset_graph(){
   neighbors_.pop_back();
 }
 
-Vector2f Navigation::get_local_goal() {
+Vector2f Navigation::get_local_goal(){
+  std::cout << "entering get local goal" << std::endl;
   // Check if v_ and neighbors_ are empty if empty:
   if(v_.empty() || neighbors_.empty()){
     // Check if vertices.txt and edges.txt exist, 
@@ -522,7 +524,10 @@ bool Navigation::find_carrot(Vector2f* carrot){
   // 3. pick best potential carrot
   //     note we there may be 2+ intersection points, pick the one clostest to the nav_goal_loc_
   //     AND in front of the robot
-
+  std::cout << "entering find carrot" << std::endl;
+  if(plan_.size() == 0) {
+    return 0; 
+  }
   float deg_res = 360;
   Vector2f starting_point(2,0); 
   //vector<line2f> circle;
@@ -530,11 +535,11 @@ bool Navigation::find_carrot(Vector2f* carrot){
                      Vector2f(starting_point.x(),2*sin(M_PI/deg_res)/sin(M_PI*(90-180/deg_res)/180)));
   //line2f circle = vector containing lines
   Vector2f intersection_point;
-  Vector2f best_carrot;
+  Vector2f best_carrot(-1, -1);
   float min_goal_dist = 500;
-
   for(size_t n = 0; n < plan_.size() - 1; n++) {
     line2f plan_line(v_[plan_[n]], v_[plan_[n+1]]);
+    // TODO need to do roation of search angles to find carrot in map frame
     for(int theta = -90; theta < 90; theta++) {
       line2f circle_line(robot_loc_.x()+circle_line_init.p0.x()*cos(theta*M_PI/180)-circle_line_init.p0.y()*sin(theta*M_PI/180),
                          robot_loc_.y()+circle_line_init.p0.x()*sin(theta*M_PI/180)+circle_line_init.p0.y()*cos(theta*M_PI/180),
@@ -546,16 +551,19 @@ bool Navigation::find_carrot(Vector2f* carrot){
         best_carrot = intersection_point;
       }
     }
-  
-  *carrot = best_carrot;
-
   }
-
+  // TODO transform carrot from map frame to robot frame
+  if(best_carrot.x() == -1 && best_carrot.y() == -1) {
+    // We did not find a carrot
+    return 0;
+  } 
+  *carrot = best_carrot;
   return 1;
 
 }
 
 void Navigation::make_plan(){ 
+  std::cout << "entering make plan" << std::endl;
   reset_graph();
   // Add start and goal to graph
   // run dijkstra 
@@ -572,6 +580,7 @@ void Navigation::make_plan(){
   v_.push_back(nav_goal_loc_);
   neighbors_.push_back({});
 
+  std::cout << "Adding edges for start vertex" <<std::endl;
   // Add neighbors related to edges between start and other vertices
   for(size_t i = 0; i < v_.size(); i++) {
       if(int(i) == start_idx)
@@ -584,6 +593,7 @@ void Navigation::make_plan(){
       }
   }
 
+  std::cout << "Adding edges for goal vertex" <<std::endl;
   // Add neighbors related to edges between goal and other vertices
   for(size_t i = 0; i < v_.size(); i++) {
       if(int(i) == goal_idx)
@@ -603,11 +613,12 @@ void Navigation::make_plan(){
   parent.insert({start_idx, -1});
 
   frontier.push(std::make_pair(0, start_idx));     // start index, cost to go
-
+  std::cout << "Starting shortest path search" << std::endl;
   while (!frontier.empty()){
     int current = frontier.top().second;  // Get by priority!
     frontier.pop();
-    if (current == goal_idx){
+    if(current == goal_idx){
+      std::cout << "Path to goal found!" << std::endl; 
       // update plan_ to have nav plan
       while(current != -1) {
          plan_.push_back(current);
