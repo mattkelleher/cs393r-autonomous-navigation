@@ -172,6 +172,7 @@ class Navigation {
   void TransformPointCloud(TimeShiftedTF transform);
 
   //################################################################
+  const std::string map_file_;
   // Random number generator.
   util_random::Random rng_;
   vector_map::VectorMap map_;

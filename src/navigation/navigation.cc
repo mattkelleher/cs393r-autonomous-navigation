@@ -69,7 +69,8 @@ Navigation::Navigation(const string& map_file, ros::NodeHandle* n) :
     robot_omega_(0),
     nav_complete_(false),
     nav_goal_loc_(0, 0),
-    nav_goal_angle_(0) {
+    nav_goal_angle_(0),
+    map_file_(map_file) {
   drive_pub_ = n->advertise<AckermannCurvatureDriveMsg>(
       "ackermann_curvature_drive", 1);
   viz_pub_ = n->advertise<VisualizationMsg>("visualization", 1);
@@ -85,6 +86,7 @@ Navigation::Navigation(const string& map_file, ros::NodeHandle* n) :
 void Navigation::SetNavGoal(const Vector2f& loc, float angle) {
   nav_goal_loc_ = loc;
   nav_goal_angle_ = angle;
+  nav_complete_ = false; 
   std::cout << "New Nav Goal: (" << nav_goal_loc_.x() << ", " << nav_goal_loc_.y() << ")" << std::endl; 
 }
 
@@ -163,6 +165,7 @@ void Navigation::TransformPointCloud(TimeShiftedTF transform){
 
 void Navigation::Run(){
    if(dist_point_to_point(nav_goal_loc_, robot_loc_) < 0.15) {
+     std::cout << "***************Goal Reached!***************" << std::endl;
      nav_complete_ = true;
    }   
    if(nav_complete_) {
@@ -330,8 +333,9 @@ float Navigation::dist_point_to_point(Vector2f p1, Vector2f p2) {
  }
 
 void Navigation::make_graph(){
+  std::cout << "Entering make graph" << std::endl;
   vector<Vector2f> sample_points;
-
+  map_.Load(map_file_);  
   float xmin, xmax, ymin, ymax;
   xmin = -44.0;
   xmax = 11.8;
@@ -363,9 +367,10 @@ void Navigation::make_graph(){
     sample_point.y() = rng_.UniformRandom(ymin, ymax);
     sample_points.push_back(sample_point); 
   }
-
+  std::cout << "Inital sampling complete" << std::endl;
   vector<Vector2f> sample_points_filtered;
   for (auto sample_point : sample_points){
+    bool point_valid = true;
     for (size_t j = 0; j < map_.lines.size(); j++){
       Vector2f m_point1;
       Vector2f m_point2;
@@ -375,12 +380,17 @@ void Navigation::make_graph(){
       m_point2.x() = map_.lines[j].p1.x();
       m_point2.y() = map_.lines[j].p1.y();
 
-      if (dist_point_to_line(sample_point.x(), sample_point.y(), m_point1, m_point2) > 0.3){ //TODO 0.3 
-        sample_points_filtered.push_back(sample_point);
+      if (dist_point_to_line(sample_point.x(), sample_point.y(), m_point1, m_point2) < 0.3){ //TODO 0.3 
+        point_valid = false;
+        break;
       }
+    }
+    if(point_valid) {
+      sample_points_filtered.push_back(sample_point);
     }  
   }
-
+  std::cout << "Vertice filtering complete" << std::endl;
+  std::cout << "Num Vertices: " << sample_points_filtered.size() << std::endl;
   vector<Vector2i> edges;
   for(size_t i = 0; i < sample_points_filtered.size(); i++) {
     for(size_t j = i + 1; j < sample_points_filtered.size(); j++) {
@@ -389,6 +399,7 @@ void Navigation::make_graph(){
       }
     } 
   }
+  std::cout << "Edge indentifying complete" << std::endl;
   vector<Vector2i> edges_filtered;
   for (size_t i = 0; i<edges.size(); i++){
     Vector2i edge = edges[i];
@@ -401,7 +412,7 @@ void Navigation::make_graph(){
       }
     }
   }
-  
+  std::cout<< "Edge filtering complete" << std::endl;
   // Write vertices to a file
   FILE* vertex_fid = fopen("vertices.txt", "w");
   if(vertex_fid == NULL) {
@@ -465,9 +476,22 @@ void Navigation::reset_graph(){
 
 Vector2f Navigation::get_local_goal() {
   // Check if v_ and neighbors_ are empty if empty:
+  if(v_.empty() || neighbors_.empty()){
     // Check if vertices.txt and edges.txt exist, 
-      //if not run make_graph()
-      //if they do run load_graph()
+    if(FILE* v_fid = fopen("vertices.txt", "r")) {
+      fclose(v_fid);
+      if(FILE* e_fid = fopen("edges.txt", "r")) {
+        fclose(e_fid);
+        load_graph();
+      }
+      else{
+        make_graph();
+      }
+    }
+    else{
+      make_graph();
+    }
+  }  
   // find intersection of plan and 4m radius around current location, this is local_goal
   Vector2f carrot(4,0);
   bool intersection_found = 0;
@@ -483,6 +507,7 @@ Vector2f Navigation::get_local_goal() {
 
 bool Navigation::find_carrot(Vector2f* carrot){
   // Using plan_ and robot_loc_  (these are both in map frame)
+  //   -> plan_ is a vector of ints (coresponding to verticies) (just the indices)
   // 1. find potential carrot locations in map frame  (intersection of plan and 4m circle around robot
   // 2. transform carrot location from map frame to robot frame
   // 3. pick best potential carrot
