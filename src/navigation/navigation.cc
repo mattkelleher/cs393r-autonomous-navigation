@@ -558,6 +558,34 @@ void Navigation::make_plan(){
   // run dijkstra 
   // add vertice indicies to plan_ in order
   // remove start and goal vertices from v_, neighbors_, and visited_ 
-}
+  start = Vector2f(start_x_, start_y_);
+  std::v_::insert(begin(), 1, start);
+
+  v_.push_back(nav_goal_loc_);
+
+  Vector<Vector2f> visited_;
+
+  frontier = PriorityQueue();  // Note priority!
+  frontier.push(0);     // start index, cost to go
+  parent = {}, parent[0] = Null;
+  cost = {};
+  cost[0] = 0;             // Cost from start
+
+  while (!frontier.empty()){
+    current = frontier.get();  // Get by priority!
+    if (current == sizeof(v_)-1){
+      break
+    }
+    for (auto next: neighbors_[current]){
+      new_cost = cost[current] + dist_point_to_point(v_[current], next);
+      if next not in cost or new_cost < cost[next]:
+        cost[next] = new_cost  // Insertion or edit
+        frontier.put(next, new_cost)
+        parent[next] = current
+    }
+  }
+  v_.erase(vec.begin());
+  v_.popback();
+ }
 
 }  // namespace navigation
