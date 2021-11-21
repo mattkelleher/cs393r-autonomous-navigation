@@ -181,7 +181,7 @@ class Navigation {
   // Vector of vector of edges (parallel to v_ vector: e_[i] is a list of neighbors of v_[i])
   std::vector<std::vector<int>> neighbors_;
   // Vector of points in the plan to be visited in order
-  std::vector<Eigen::Vector2f> plan_;
+  std::vector<int> plan_;
   // keeps track of which nodes have been visited for planning
   std::vector<int> visited_;  
 };

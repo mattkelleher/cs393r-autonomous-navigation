@@ -510,9 +510,6 @@ Vector2f Navigation::get_local_goal() {
   return carrot;
 }
 
-float ParticleFilter::_Distance(Vector2f p1, Vector2f p2) {
-  return sqrt(pow(p1.x() - p2.x(), 2) + pow(p1.y() - p2.y(), 2));
-}
 
 bool Navigation::find_carrot(Vector2f* carrot){
   // Using plan_ and robot_loc_  (these are both in map frame)
@@ -526,29 +523,28 @@ bool Navigation::find_carrot(Vector2f* carrot){
   float deg_res = 360;
   Vector2f starting_point(2,0); 
   //vector<line2f> circle;
-  line2f circle_line(Vector2f(starting_point.x(),-2*sin(M_PI/deg_res)/sin(M_PI*(90-180/deg_res)/180)),
+  line2f circle_line_init(Vector2f(starting_point.x(),-2*sin(M_PI/deg_res)/sin(M_PI*(90-180/deg_res)/180)),
                      Vector2f(starting_point.x(),2*sin(M_PI/deg_res)/sin(M_PI*(90-180/deg_res)/180)));
   //line2f circle = vector containing lines
   Vector2f intersection_point;
   Vector2f best_carrot;
-  float min_goal_dist = 4;
+  float min_goal_dist = 500;
 
-  for(size_t n = 0; n < plan_.size(); n++) {
-    line2f plan_line(Vector2f(v_[plan_[n]].x(),v_[plan_[n]].y()),
-                     Vector2f(v_[plan_[n+1]].x(),v_[plan_[n+1]].y()));
+  for(size_t n = 0; n < plan_.size() - 1; n++) {
+    line2f plan_line(v_[plan_[n]], v_[plan_[n+1]]);
     for(int theta = -90; theta < 90; theta++) {
-      line2f circle_line(robot_loc_.x()+circle_line.p0.x()*cos(theta*M_PI/180)-circle_line.p0.y()*sin(theta*M_PI/180),
-                         robot_loc_.y()+circle_line.p0.x()*sin(theta*M_PI/180)+circle_line.p0.y()*cos(theta*M_PI/180),
-                         robot_loc_.x()+circle_line.p1.x()*cos(theta*M_PI/180)-circle_line.p1.y()*sin(theta*M_PI/180),
-                         robot_loc_.y()+circle_line.p1.x()*sin(theta*M_PI/180)+circle_line.p1.y()*cos(theta*M_PI/180));
-      bool intersects = plan_line.Intersects(circle_line,&intersection_point);
-      if(intersects && _Distance(intersection_point,nav_goal_loc_) < min_goal_dist) {
-        min_goal_dist = _Distance(intersection_point,nav_goal_loc_);
+      line2f circle_line(robot_loc_.x()+circle_line_init.p0.x()*cos(theta*M_PI/180)-circle_line_init.p0.y()*sin(theta*M_PI/180),
+                         robot_loc_.y()+circle_line_init.p0.x()*sin(theta*M_PI/180)+circle_line_init.p0.y()*cos(theta*M_PI/180),
+                         robot_loc_.x()+circle_line_init.p1.x()*cos(theta*M_PI/180)-circle_line_init.p1.y()*sin(theta*M_PI/180),
+                         robot_loc_.y()+circle_line_init.p1.x()*sin(theta*M_PI/180)+circle_line_init.p1.y()*cos(theta*M_PI/180));
+      bool intersects = plan_line.Intersection(circle_line,&intersection_point);
+      if(intersects && dist_point_to_point(intersection_point,nav_goal_loc_) < min_goal_dist) {
+        min_goal_dist = dist_point_to_point(intersection_point,nav_goal_loc_);
         best_carrot = intersection_point;
       }
     }
   
-  carrot = best_carrot;
+  *carrot = best_carrot;
 
   }
 
