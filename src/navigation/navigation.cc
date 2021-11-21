@@ -561,21 +561,22 @@ void Navigation::make_plan(){
   Vector2f start;
   start = robot_loc_;
   std::v_::insert(begin(), 1, start);
+  std::neighbors_::insert(begin(), 1, {});
 
   v_.push_back(nav_goal_loc_);
 
   for(size_t i = 0; i < sample_points_filtered.size(); i++) {
       if(0 < dist_point_to_point(sample_points_filtered[i], start) && dist_point_to_point(sample_points_filtered[i], start)< 2){ //TODO 0 and 0.1
-        edges.push_back(Vector2i(0, int(i)));
+        neighbors_[0].push_back(int(i));
+	neighbors_[i].push_back(int(0));
       }
   }
 
   for(size_t i = 0; i < sample_points_filtered.size(); i++) {
       if(0 < dist_point_to_point(sample_points_filtered[i], robot_loc_) && dist_point_to_point(sample_points_filtered[i], robot_loc_)< 2){ //TODO 0 and 0.1
-        edges.push_back(Vector2i(int(i), v_.size()-1));
+        neighbors_.push_back(int(i));
       }
   }  
-
 
   frontier = PriorityQueue();  // Note priority!
   Vector2f node_and_cost;
