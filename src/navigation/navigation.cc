@@ -69,7 +69,8 @@ Navigation::Navigation(const string& map_file, ros::NodeHandle* n) :
     robot_omega_(0),
     nav_complete_(false),
     nav_goal_loc_(0, 0),
-    nav_goal_angle_(0) {
+    nav_goal_angle_(0),
+    map_file_(map_file) {
   drive_pub_ = n->advertise<AckermannCurvatureDriveMsg>(
       "ackermann_curvature_drive", 1);
   viz_pub_ = n->advertise<VisualizationMsg>("visualization", 1);
@@ -85,6 +86,7 @@ Navigation::Navigation(const string& map_file, ros::NodeHandle* n) :
 void Navigation::SetNavGoal(const Vector2f& loc, float angle) {
   nav_goal_loc_ = loc;
   nav_goal_angle_ = angle;
+  nav_complete_ = false; 
   std::cout << "New Nav Goal: (" << nav_goal_loc_.x() << ", " << nav_goal_loc_.y() << ")" << std::endl; 
 }
 
@@ -163,6 +165,7 @@ void Navigation::TransformPointCloud(TimeShiftedTF transform){
 
 void Navigation::Run(){
    if(dist_point_to_point(nav_goal_loc_, robot_loc_) < 0.15) {
+     std::cout << "***************Goal Reached!***************" << std::endl;
      nav_complete_ = true;
    }   
    if(nav_complete_) {
@@ -174,8 +177,8 @@ void Navigation::Run(){
   uint64_t actuation_time = start_loop_time + car_params::actuation_latency;
   
   // Clear previous visualizations.
-  visualization::ClearVisualizationMsg(local_viz_msg_);
-  visualization::ClearVisualizationMsg(global_viz_msg_);
+  visualization::ClearVisualizationMsg(local_viz_msg_); 
+  //visualization::ClearVisualizationMsg(global_viz_msg_); TODO undo
 
   // If odometry has not been initialized, we can't do anything.
   if (!odom_initialized_) return;
@@ -330,8 +333,9 @@ float Navigation::dist_point_to_point(Vector2f p1, Vector2f p2) {
  }
 
 void Navigation::make_graph(){
+  std::cout << "Entering make graph" << std::endl;
   vector<Vector2f> sample_points;
-
+  map_.Load(map_file_);  
   float xmin, xmax, ymin, ymax;
   xmin = -44.0;
   xmax = 11.8;
@@ -363,9 +367,10 @@ void Navigation::make_graph(){
     sample_point.y() = rng_.UniformRandom(ymin, ymax);
     sample_points.push_back(sample_point); 
   }
-
+  std::cout << "Inital sampling complete" << std::endl;
   vector<Vector2f> sample_points_filtered;
   for (auto sample_point : sample_points){
+    bool point_valid = true;
     for (size_t j = 0; j < map_.lines.size(); j++){
       Vector2f m_point1;
       Vector2f m_point2;
@@ -375,12 +380,16 @@ void Navigation::make_graph(){
       m_point2.x() = map_.lines[j].p1.x();
       m_point2.y() = map_.lines[j].p1.y();
 
-      if (dist_point_to_line(sample_point.x(), sample_point.y(), m_point1, m_point2) > 0.3){ //TODO 0.3 
-        sample_points_filtered.push_back(sample_point);
+      if (dist_point_to_line(sample_point.x(), sample_point.y(), m_point1, m_point2) < 0.2){ //TODO 0.3 
+  //      point_valid = false; TODO undo? this will simply give us all sampled points
+        break;
       }
+    }
+    if(point_valid) {
+      sample_points_filtered.push_back(sample_point);
     }  
   }
-
+  std::cout << "Vertice filtering complete" << std::endl;
   vector<Vector2i> edges;
   for(size_t i = 0; i < sample_points_filtered.size(); i++) {
     for(size_t j = i + 1; j < sample_points_filtered.size(); j++) {
@@ -389,19 +398,25 @@ void Navigation::make_graph(){
       }
     } 
   }
+  std::cout << "Edge indentifying complete" << std::endl;
   vector<Vector2i> edges_filtered;
   for (size_t i = 0; i<edges.size(); i++){
+    bool edge_valid = true;
     Vector2i edge = edges[i];
     line2f edge_line(sample_points_filtered[edge.x()], sample_points_filtered[edge.y()]); 
     for (size_t j = 0; j < map_.lines.size(); j++){ //TODO make map_ part of navigation class and initalize
       const line2f map_line = map_.lines[j];
       Vector2f intrsctn_pt;
-      if(!map_line.Intersection(edge_line, &intrsctn_pt)){ //TODO
-        edges_filtered.push_back(edge);
+      if(map_line.Intersection(edge_line, &intrsctn_pt)){
+        edge_valid = false;
+        break;       
       }
     }
+    if(edge_valid) {
+      edges_filtered.push_back(edge);
+    }
   }
-  
+  std::cout<< "Edge filtering complete" << std::endl;
   // Write vertices to a file
   FILE* vertex_fid = fopen("vertices.txt", "w");
   if(vertex_fid == NULL) {
@@ -440,6 +455,7 @@ void Navigation::load_graph(){
   while(fscanf(vertex_fid, "%f, %f \n", &x, &y) == 2) {
     v_.push_back(Vector2f(x,y));
     neighbors_.push_back({});
+    visualization::DrawPoint(Vector2f(x,y), 0x1644db, global_viz_msg_);
     visited_.push_back(0);
   }
   fclose(vertex_fid);
@@ -465,9 +481,22 @@ void Navigation::reset_graph(){
 
 Vector2f Navigation::get_local_goal() {
   // Check if v_ and neighbors_ are empty if empty:
+  if(v_.empty() || neighbors_.empty()){
     // Check if vertices.txt and edges.txt exist, 
-      //if not run make_graph()
-      //if they do run load_graph()
+    if(FILE* v_fid = fopen("vertices.txt", "r")) {
+      fclose(v_fid);
+      if(FILE* e_fid = fopen("edges.txt", "r")) {
+        fclose(e_fid);
+        load_graph();
+      }
+      else{
+        make_graph();
+      }
+    }
+    else{
+      make_graph();
+    }
+  }  
   // find intersection of plan and 4m radius around current location, this is local_goal
   Vector2f carrot(4,0);
   bool intersection_found = 0;
@@ -487,6 +516,7 @@ float ParticleFilter::_Distance(Vector2f p1, Vector2f p2) {
 
 bool Navigation::find_carrot(Vector2f* carrot){
   // Using plan_ and robot_loc_  (these are both in map frame)
+  //   -> plan_ is a vector of ints (coresponding to verticies) (just the indices)
   // 1. find potential carrot locations in map frame  (intersection of plan and 4m circle around robot
   // 2. transform carrot location from map frame to robot frame
   // 3. pick best potential carrot
