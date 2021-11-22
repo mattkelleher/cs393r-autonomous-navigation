@@ -184,6 +184,8 @@ class Navigation {
   std::vector<std::vector<int>> neighbors_;
   // Vector of points in the plan to be visited in order
   std::vector<int> plan_;
+  // Draw planned car path
+  void draw_plan_();
 };
 
 }  // namespace navigation

@@ -179,8 +179,8 @@ void Navigation::Run(){
   
   // Clear previous visualizations.
   visualization::ClearVisualizationMsg(local_viz_msg_); 
-  //visualization::ClearVisualizationMsg(global_viz_msg_); TODO undo
-
+  //visualization::ClearVisualizationMsg(global_viz_msg_); 
+  draw_plan_();
   // If odometry has not been initialized, we can't do anything.
   if (!odom_initialized_) return;
 
@@ -637,6 +637,15 @@ void Navigation::make_plan(){
       }
     }
   }
+  draw_plan_();
  }
+
+void Navigation::draw_plan_(){
+  if(plan_.size() > 0){
+    for(size_t i = 0; i < plan_.size() - 1; i++){
+      visualization::DrawLine(v_[plan_[i]], v_[plan_[i+1]], 0x00008B, global_viz_msg_);  
+    }
+  }
+}
 
 }  // namespace navigation
