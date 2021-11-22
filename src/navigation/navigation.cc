@@ -540,7 +540,7 @@ bool Navigation::find_carrot(Vector2f* carrot){
   for(size_t n = 0; n < plan_.size() - 1; n++) {
     line2f plan_line(v_[plan_[n]], v_[plan_[n+1]]);
     // TODO need to do roation of search angles to find carrot in map frame - DONE
-    for(int theta = robot_angle_-90; theta < robot_angle_+90; theta++) {
+    for(float theta = robot_angle_-90; theta < robot_angle_+90; theta++) {
       line2f circle_line(robot_loc_.x()+circle_line_init.p0.x()*cos(theta*M_PI/180)-circle_line_init.p0.y()*sin(theta*M_PI/180),
                          robot_loc_.y()+circle_line_init.p0.x()*sin(theta*M_PI/180)+circle_line_init.p0.y()*cos(theta*M_PI/180),
                          robot_loc_.x()+circle_line_init.p1.x()*cos(theta*M_PI/180)-circle_line_init.p1.y()*sin(theta*M_PI/180),
@@ -558,7 +558,7 @@ bool Navigation::find_carrot(Vector2f* carrot){
     return 0;
   } else {
     Vector2f transformed_carrot((best_carrot.x()-robot_loc_.x())*cos(robot_angle_)+(best_carrot.y()-robot_loc_.y())*sin(robot_angle_),
-                               -(best_carrot.x()-robot_loc_.x())*sin(robot_angle_)+(best_carrot.y()-robot_loc_.y())*cos(robot_angle_))
+                               -(best_carrot.x()-robot_loc_.x())*sin(robot_angle_)+(best_carrot.y()-robot_loc_.y())*cos(robot_angle_));
     *carrot = transformed_carrot;
     return 1;
   }
