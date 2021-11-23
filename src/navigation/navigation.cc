@@ -87,6 +87,7 @@ Navigation::Navigation(const string& map_file, ros::NodeHandle* n) :
 void Navigation::SetNavGoal(const Vector2f& loc, float angle) {
   nav_goal_loc_ = loc;
   nav_goal_angle_ = angle;
+  plan_.clear();
   nav_complete_ = false; 
   std::cout << "New Nav Goal: (" << nav_goal_loc_.x() << ", " << nav_goal_loc_.y() << ")" << std::endl; 
 }
@@ -165,7 +166,7 @@ void Navigation::TransformPointCloud(TimeShiftedTF transform){
 }
 
 void Navigation::Run(){
-   if(dist_point_to_point(nav_goal_loc_, robot_loc_) < 0.15) {
+   if(dist_point_to_point(nav_goal_loc_, robot_loc_) < 0.5) {
      std::cout << "***************Goal Reached!***************" << std::endl;
      nav_complete_ = true;
    }   
@@ -504,7 +505,7 @@ Vector2f Navigation::get_local_goal(){
       load_graph();
     }
   }  
-  draw_vertices_();
+  //draw_vertices_();
   // find intersection of plan and 4m radius around current location, this is local_goal
   Vector2f carrot(4,0);
   bool intersection_found = 0;
@@ -532,6 +533,14 @@ bool Navigation::find_carrot(Vector2f* carrot){
   if(plan_.size() == 0) {
     return 0; 
   }
+  if(dist_point_to_point(robot_loc_, nav_goal_loc_) < 2) {
+    Vector2f best_carrot = nav_goal_loc_;
+    Vector2f transformed_carrot((best_carrot.x()-robot_loc_.x())*cos(robot_angle_)+(best_carrot.y()-robot_loc_.y())*sin(robot_angle_),
+                               -(best_carrot.x()-robot_loc_.x())*sin(robot_angle_)+(best_carrot.y()-robot_loc_.y())*cos(robot_angle_));
+    *carrot = transformed_carrot;
+    return 1;
+  } 
+  
   float deg_res = 360;
   Vector2f starting_point(2,0); 
   //vector<line2f> circle;
