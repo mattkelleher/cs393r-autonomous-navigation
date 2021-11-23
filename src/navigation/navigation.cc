@@ -179,8 +179,8 @@ void Navigation::Run(){
   
   // Clear previous visualizations.
   visualization::ClearVisualizationMsg(local_viz_msg_); 
-  //visualization::ClearVisualizationMsg(global_viz_msg_); 
-  draw_plan_();
+  visualization::ClearVisualizationMsg(global_viz_msg_); 
+  
   // If odometry has not been initialized, we can't do anything.
   if (!odom_initialized_) return;
 
@@ -496,12 +496,15 @@ Vector2f Navigation::get_local_goal(){
       }
       else{
         make_graph();
+        load_graph();
       }
     }
     else{
       make_graph();
+      load_graph();
     }
   }  
+  draw_vertices_();
   // find intersection of plan and 4m radius around current location, this is local_goal
   Vector2f carrot(4,0);
   bool intersection_found = 0;
@@ -511,6 +514,7 @@ Vector2f Navigation::get_local_goal(){
       make_plan();
     }
   }
+  draw_plan_();
      // if no intersection -> plan is not valid -> run generate_plan() and repeat 
   return carrot;
 }
@@ -629,8 +633,8 @@ void Navigation::make_plan(){
       break;
     }
     for (int next: neighbors_[current]){
-      float new_cost = cost[current] + dist_point_to_point(v_[current], v_[next]);
-      if((cost.find(next) == cost.end()) || (new_cost < cost[next])) {  
+      float new_cost = cost[current] - dist_point_to_point(v_[current], v_[next]);
+      if((cost.find(next) == cost.end()) || (new_cost > cost[next])) {  
         cost[next] = new_cost;  // Insertion or edit
         frontier.push(std::make_pair(new_cost, next));
         parent[next] = current;
@@ -646,6 +650,11 @@ void Navigation::draw_plan_(){
       visualization::DrawLine(v_[plan_[i]], v_[plan_[i+1]], 0x00008B, global_viz_msg_);  
     }
   }
+}
+
+void Navigation::draw_vertices_(){
+  for(size_t i = 0; i < v_.size(); i++)
+    visualization::DrawPoint(v_[i], 0x1644db, global_viz_msg_);
 }
 
 }  // namespace navigation

@@ -186,6 +186,8 @@ class Navigation {
   std::vector<int> plan_;
   // Draw planned car path
   void draw_plan_();
+  // Draw vertices 
+  void draw_vertices_();
 };
 
 }  // namespace navigation
